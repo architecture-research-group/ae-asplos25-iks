@@ -49,7 +49,10 @@ quantize-405b:
 .PHONY: setup
 setup:
 	@python3 -m venv venv
-	@. venv/bin/activate && pip install -r requirements.txt && pip install -r llama.cpp/requirements.txt
+	@. venv/bin/activate && pip install -r requirements.txt 
+	@cd llama.cpp && make
+	@python3 -m venv venv_llamacpp
+	@. venv_llamacpp/bin/activate&& pip install -r llama.cpp/requirements.txt
 	@cd llama.cpp && make
 
 
