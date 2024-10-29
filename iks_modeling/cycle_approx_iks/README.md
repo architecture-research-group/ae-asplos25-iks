@@ -30,7 +30,6 @@ make table_4
 ```
 - Output:
 ```
-Printing to waste time in master thread
 Stall cycles: 0
 Useful cycles: 45956352
 Top-k time: 191 us
