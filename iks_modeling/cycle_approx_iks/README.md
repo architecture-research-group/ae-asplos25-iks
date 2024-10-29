@@ -21,3 +21,18 @@ make simulator
 make table_3
 make table_4
 ```
+
+#### Examples:
+
+- 1 IKS, 50g corpus, 32 batch size
+```bash 
+./simulator 768 68 64 8 1 32552084 32 2>/dev/null
+```
+- Output:
+```
+Printing to waste time in master thread
+Stall cycles: 0
+Useful cycles: 45956352
+Top-k time: 191 us
+Total time: 46.1474 ms
+```
