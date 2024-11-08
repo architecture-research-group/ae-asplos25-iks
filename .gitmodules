@@ -1,3 +1,0 @@
-[submodule "llm_setup/llama.cpp"]
-	path = llm_setup/llama.cpp
-	url = git@github.com:ggerganov/llama.cpp.git
