@@ -19,7 +19,7 @@ make simulator
 
 ```bash
 make table_3
-make table_4
+make figure_9
 ```
 
 #### Examples:
