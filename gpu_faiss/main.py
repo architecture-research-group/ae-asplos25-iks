@@ -30,7 +30,10 @@ for nq in [1,16]:
         if 2**lg_gpus > opts.max_gpus:
             break
 
-        for size in [1,2,4,8,16, 50,200,512,1024,2048]:
+        for size in [50,200,512,1024,2048]:
+            if opts.max_gpus * 80 / size < 1:
+                print(f"Skipping {size} GB with {opts.max_gpus} GPUs")
+                continue
             xb = np.random.randn(round(size*nb_50/50), d).astype(dtype)
             index_flat = faiss.IndexFlatIP(d)
             index_flat.add(xb)
