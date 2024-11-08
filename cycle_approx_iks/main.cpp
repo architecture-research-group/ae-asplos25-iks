@@ -5,6 +5,7 @@
 #include <cassert>
 #include <omp.h>
 #include <time.h>
+#include <bits/stdc++.h>
 
 
 constexpr int CHECK_CYCLES = 3;
@@ -30,19 +31,19 @@ struct offload_context{
 		std::uniform_real_distribution<double> dist(0.0, 1.0);
 		if (detailed) {
 #pragma omp parallel for
-		for (int i = 0; i < total_vectors; i++) {
-			corpus_vectors[i] = new float[768];
-			for (int j = 0; j < 768; j++) {
-				corpus_vectors[i][j] = dist(rng);
+			for (int i = 0; i < total_vectors; i++) {
+				corpus_vectors[i] = new float[768];
+				for (int j = 0; j < 768; j++) {
+					corpus_vectors[i][j] = dist(rng);
+				}
 			}
-		}
-		query_vectors = new float*[query_batch_size];
-		for (int i = 0; i < query_batch_size; i++) {
-			query_vectors[i] = new float[768];
-			for (int j = 0; j < 768; j++) {
-				query_vectors[i][j] = dist(rng);
+			query_vectors = new float*[query_batch_size];
+			for (int i = 0; i < query_batch_size; i++) {
+				query_vectors[i] = new float[768];
+				for (int j = 0; j < 768; j++) {
+					query_vectors[i][j] = dist(rng);
+				}
 			}
-		}
 		}
 		else {
 			corpus_vectors = nullptr;
@@ -119,17 +120,17 @@ struct PE {
 
 
 
-		   float dot_product = 0;
-		   if (offload_context->corpus_vectors != nullptr && offload_context->query_vectors != nullptr) {
-			   dot_product = 0;
-		   for (int i = 0; i < d; i++) {
-			   dot_product += offload_context->corpus_vectors[id][i] * offload_context->query_vectors[id_pe][i];
-		   }
-			top_k_cycles += topk.check(dot_product, id);
-		   }
-		   else {
-			   top_k_cycles += topk.check(dist(rng), id);
-		   }
+			float dot_product = 0;
+			if (offload_context->corpus_vectors != nullptr && offload_context->query_vectors != nullptr) {
+				dot_product = 0;
+				for (int i = 0; i < d; i++) {
+					dot_product += offload_context->corpus_vectors[id][i] * offload_context->query_vectors[id_pe][i];
+				}
+				top_k_cycles += topk.check(dot_product, id);
+			}
+			else {
+				top_k_cycles += topk.check(dist(rng), id);
+			}
 
 		}
 
@@ -218,7 +219,7 @@ struct NMA {
 
 
 
-	
+
 
 
 struct IKS {
@@ -263,21 +264,21 @@ struct IKS {
 
 		omp_set_num_threads(nma_array.size()+1 );
 
-		#pragma omp parallel
+#pragma omp parallel
 		{
 			int thread_id = omp_get_thread_num();
 			if (thread_id == 0) {
-				#pragma omp master
+#pragma omp master
 				{
 					std::cerr << "Printing to waste time in master thread" << std::endl;
 				}
 			}
 
-				else{
-				#pragma omp single
+			else{
+#pragma omp single
 				{
 					for (int i = 0; i < nma_array.size(); i++) {
-						#pragma omp task
+#pragma omp task
 						{
 							int iks_offset = 0;
 							for (int j = 0; j < id_iks; j++) {
@@ -309,7 +310,7 @@ struct MultiIKS {
 	std::vector<IKS> iks_array;
 	int d;
 	int mac_units;
-	
+
 	MultiIKS(int d, int mac_units, int num_pe, int num_nma, int num_iks) : d(d), mac_units(mac_units) {
 		iks_array.reserve(num_iks);
 		for (int i = 0; i < num_iks; ++i) {
@@ -354,6 +355,12 @@ struct MultiIKS {
 };
 
 
+class Comparator {
+public:
+	bool operator() (std::pair<double, int>& a, std::pair<double, int>& b) {
+		return a.first > b.first;
+	}
+};
 
 
 int main(int argc, char** argv) {
@@ -382,30 +389,37 @@ int main(int argc, char** argv) {
 	timespec start_time, end_time;
 
 	clock_gettime(CLOCK_MONOTONIC, &start_time);
-	topk_list* final_top_k_list = new topk_list[batch_size];
+
+
+	std::priority_queue<std::pair<double, int>, std::vector<std::pair<double, int>>, Comparator> top_k_lists[batch_size];
 	for (int i = 0; i < batch_size; i++) {
-		std::vector<std::pair<double, int>> final_top_k_list_i = {};
 		for (int j = 0; j < num_iks; j++) {
 
 			for (int k = 0; k < num_nma; k++) {
-				final_top_k_list_i.insert(final_top_k_list_i.end(), offload_context.top_k_lists[j][k][i].begin(), offload_context.top_k_lists[j][k][i].end());
+				for (auto& elem : offload_context.top_k_lists[j][k][i]) {
+					if (top_k_lists[i].size() < 10) {
+						top_k_lists[i].push(elem);
+					} else if (elem.first > top_k_lists[i].top().first) {
+						top_k_lists[i].pop();
+						top_k_lists[i].push(elem);
+					}
+				}
 
 			}
 		}
-		std::sort(final_top_k_list_i.begin(), final_top_k_list_i.end(), std::greater<std::pair<double, int>>());
-		if (final_top_k_list_i.size() > 32) {
-			final_top_k_list_i.resize(32);
-		}
-		final_top_k_list[i] = final_top_k_list_i;
 	}
+
+
 	clock_gettime(CLOCK_MONOTONIC, &end_time);
 
 	int top_k_ns = end_time.tv_nsec-start_time.tv_nsec;
 
+	std::cout << "--- Results ---" << std::endl;
 	std::cout << "Stall cycles: " << multi_iks_cycles.first << std::endl;
 	std::cout << "Useful cycles: " << multi_iks_cycles.second << std::endl;
 	std::cout << "Top-k time: " << top_k_ns/1e3 << " us" << std::endl;
 	std::cout << "Total time: " << (multi_iks_cycles.first + multi_iks_cycles.second + top_k_ns)/1e6 << " ms" << std::endl;
+	std::cout << std::endl;
 
 
 
