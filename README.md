@@ -11,6 +11,6 @@ For comparison with IKS, we run exact search on up to 8 GPUs for various corpus 
 
 ## CPU implementation
 
-Directory: `ae-aslpos25-iks-faiss`.
+Directory: `ae-aslpos25-iks-faiss`. This is a submodule, so run `git submodule init` and `git submodule update`.
 
 The default parameters of FAISS are suboptimal on many current systems. To address this, we use Intel MKL as the backend, and increase the MKL block size to 16384. A source file for a program generating the values for Fig.9 is located in the `ae_asplos25` directory. Run `./ae_setup.sh /path/to/mkl/latest/lib` to run Cmake with the relevant options, and run `./ae_fig_9.sh` to build and run the program for figure 9.
